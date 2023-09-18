@@ -4,6 +4,9 @@ import zipfile
 import os
 import plotly.graph_objects as go
 from datetime import datetime, time
+import shutil
+import tempfile
+import io
 
 # Configurar la página para un diseño amplio
 st.set_page_config(layout="wide")
@@ -13,11 +16,12 @@ TIMESTAMP_COL = 'Local Time Stamp'
 CONSUMPTION_COL = 'Active energy (Wh)'
 
 def extract_zip(uploaded_zip):
+    temp_dir = tempfile.mkdtemp()  # Create a unique temporary directory
     with zipfile.ZipFile(uploaded_zip, 'r') as z:
-        z.extractall('temp_dir')
-    return [f for f in os.listdir('temp_dir') if f.endswith('.csv')]
+        z.extractall(temp_dir)
+    return [f for f in os.listdir(temp_dir) if f.endswith('.csv')], temp_dir
 
-import io
+
 def read_csv_with_timestamp_autodetect(file_buffer):
     # Leemos todo el archivo en memoria como bytes
     file_bytes = file_buffer.read()
@@ -56,11 +60,12 @@ uploaded_file = st.file_uploader("Sube un archivo ZIP o CSV", type=['zip', 'csv'
 
 if uploaded_file is not None:
     if uploaded_file.name.endswith('.zip'):
-        csv_files = extract_zip(uploaded_file)
+        csv_files, temp_dir = extract_zip(uploaded_file)  # Capture the temp_dir
         selected_csv = st.selectbox("Selecciona un archivo CSV", csv_files)
-        selected_csv_path = os.path.join('temp_dir', selected_csv)
+        selected_csv_path = os.path.join(temp_dir, selected_csv)
         with open(selected_csv_path, 'rb') as f:
             df = read_csv_with_timestamp_autodetect(f)
+        shutil.rmtree(temp_dir)  # Remove the temporary directory and its contents
     else:
         df = read_csv_with_timestamp_autodetect(uploaded_file)
 
